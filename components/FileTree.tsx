@@ -1,6 +1,7 @@
 'use client';
 
-import { GitHubFile, getRepoContent } from '@/lib/github';
+import { fetchRepoContents } from '@/app/actions';
+import { GitHubFile } from '@/lib/github';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -68,7 +69,7 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ file, owner, repo, onSelect
             if (!loaded && !loading) {
                 setLoading(true);
                 try {
-                    const data = await getRepoContent(owner, repo, file.path);
+                    const data = await fetchRepoContents(owner, repo, file.path);
                     setChildren(data);
                     setLoaded(true);
                 } catch (err) {

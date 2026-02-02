@@ -128,7 +128,7 @@ export default function Home() {
           VEDANTA VIEWER
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {repoConfig.owner}/{repoConfig.repo}
+          Local Library: adi-shankaracharya
         </Typography>
       </Box>
       <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>

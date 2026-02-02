@@ -1,11 +1,11 @@
 'use server';
 
-import { getFileContent, getRepoContent } from '@/lib/github';
+import { getLocalFileContent, getLocalRepoContent } from '@/lib/local-content';
 
 export async function fetchRepoContents(owner: string, repo: string, path?: string) {
-    return await getRepoContent(owner, repo, path);
+    return await getLocalRepoContent(owner, repo, path);
 }
 
 export async function fetchFileContent(owner: string, repo: string, path: string) {
-    return await getFileContent(owner, repo, path);
+    return await getLocalFileContent(owner, repo, path);
 }
