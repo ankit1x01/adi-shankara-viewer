@@ -1,14 +1,15 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import { getAnalysisPrompt, type PromptType } from './prompts';
 
 // Initialize the Gemini API
 const apiKey = process.env.GEMINI_API_KEY;
 
-if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not set in environment variables');
-}
-
-const genAI = new GoogleGenerativeAI(apiKey);
+const getGenAI = () => {
+    if (!apiKey) {
+        throw new Error('GEMINI_API_KEY is not set in environment variables');
+    }
+    return new GoogleGenerativeAI(apiKey);
+};
 
 export interface AnalysisResult {
     analysis: string;
@@ -24,7 +25,7 @@ export async function analyzeStanza(
 ): Promise<AnalysisResult> {
     try {
         // Use Gemini 1.5 Pro for best quality
-        const model = genAI.getGenerativeModel({
+        const model = getGenAI().getGenerativeModel({
             model: 'gemini-1.5-pro-latest',
             generationConfig: {
                 temperature: 0.7, // Balanced creativity and consistency
@@ -34,20 +35,20 @@ export async function analyzeStanza(
             },
             safetySettings: [
                 {
-                    category: 'HARM_CATEGORY_HATE_SPEECH',
-                    threshold: 'BLOCK_NONE',
+                    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
                 },
                 {
-                    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                    threshold: 'BLOCK_NONE',
+                    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
                 },
                 {
-                    category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-                    threshold: 'BLOCK_NONE',
+                    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
                 },
                 {
-                    category: 'HARM_CATEGORY_HARASSMENT',
-                    threshold: 'BLOCK_NONE',
+                    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
                 },
             ],
         });
@@ -79,7 +80,7 @@ export async function* analyzeStanzaStream(
     promptType: PromptType = 'full'
 ): AsyncGenerator<string, void, unknown> {
     try {
-        const model = genAI.getGenerativeModel({
+        const model = getGenAI().getGenerativeModel({
             model: 'gemini-1.5-pro-latest',
             generationConfig: {
                 temperature: 0.7,

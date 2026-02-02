@@ -120,11 +120,8 @@ const splitVerses = (text: string): string[] => {
 
 
 // --- CodeBlock Component ---
-interface CodeBlockProps {
+interface CodeBlockProps extends React.HTMLAttributes<HTMLElement> {
     inline?: boolean;
-    className?: string;
-    children?: React.ReactNode;
-    [key: string]: unknown;
 }
 
 const CodeBlockRaw: React.FC<CodeBlockProps> = ({
