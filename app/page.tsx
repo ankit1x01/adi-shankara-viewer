@@ -1,65 +1,234 @@
-import Image from "next/image";
+'use client';
+
+import { fetchFileContent, fetchRepoContents } from '@/app/actions';
+import FileTree from '@/components/FileTree';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
+import PdfViewer from '@/components/PdfViewer';
+import StanzaAnalysisModal from '@/components/StanzaAnalysisModal';
+import { GitHubFile } from '@/lib/github';
+import MenuIcon from '@mui/icons-material/Menu';
+import { AppBar, Box, CircularProgress, Drawer, IconButton, Paper, Toolbar, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+
+const DRAWER_WIDTH = 300;
+
+// Default Repo Config
+const DEFAULT_OWNER = 'ankit1x01';
+const DEFAULT_REPO = 'adishankaracharya-work';
 
 export default function Home() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [repoConfig, setRepoConfig] = useState({ owner: DEFAULT_OWNER, repo: DEFAULT_REPO });
+  const [rootFiles, setRootFiles] = useState<GitHubFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<GitHubFile | null>(null);
+  const [fileContent, setFileContent] = useState<string>('');
+  const [contentType, setContentType] = useState<'markdown' | 'pdf' | 'other' | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingContent, setLoadingContent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // AI Analysis Modal State
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
+  const [selectedVerse, setSelectedVerse] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  // Load root files
+  useEffect(() => {
+    loadRoot();
+  }, [repoConfig]);
+
+  const loadRoot = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const files = await fetchRepoContents(repoConfig.owner, repoConfig.repo, '');
+      setRootFiles(files);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load repository. Check owner/repo name or rate limits.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleSelectFile = async (file: GitHubFile) => {
+    setSelectedFile(file);
+    setMobileOpen(false); // Close drawer on mobile
+    setLoadingContent(true);
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+
+    try {
+      if (extension === 'md' || extension === 'markdown') {
+        setContentType('markdown');
+        const content = await fetchFileContent(repoConfig.owner, repoConfig.repo, file.path);
+        setFileContent(content);
+      } else if (extension === 'pdf') {
+        setContentType('pdf');
+        // We use the download_url for PDF
+        setFileContent(file.download_url || '');
+      } else {
+        setContentType('other');
+        setFileContent('Preview not available for this file type.');
+      }
+    } catch (err) {
+      console.error(err);
+      setFileContent('Error loading file content.');
+    } finally {
+      setLoadingContent(false);
+    }
+  };
+
+  // Handle verse analysis
+  const handleAnalyzeVerse = async (verse: string) => {
+    setSelectedVerse(verse);
+    setAnalysisModalOpen(true);
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    setAnalysis(null);
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ verse, promptType: 'full' }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to analyze verse');
+      }
+
+      setAnalysis(data.analysis);
+    } catch (err) {
+      console.error('Analysis error:', err);
+      setAnalysisError(err instanceof Error ? err.message : 'Failed to analyze verse');
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  const handleCloseAnalysisModal = () => {
+    setAnalysisModalOpen(false);
+  };
+
+  const drawerContent = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: 2, borderBottom: '1px solid #e5e7eb', bgcolor: '#f8fafc' }}>
+        <Typography variant="h6" sx={{ fontWeight: 800, color: '#1e40af', mb: 1 }}>
+          VEDANTA VIEWER
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {repoConfig.owner}/{repoConfig.repo}
+        </Typography>
+      </Box>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : error ? (
+          <Typography color="error" sx={{ p: 2, fontSize: '0.875rem' }}>{error}</Typography>
+        ) : (
+          <FileTree
+            files={rootFiles}
+            owner={repoConfig.owner}
+            repo={repoConfig.repo}
+            onSelectFile={handleSelectFile}
+            selectedPath={selectedFile?.path}
+          />
+        )}
+      </Box>
+    </Box>
+  );
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <Box sx={{ display: 'flex', height: '100vh', bgcolor: '#f8fafc' }}>
+      {/* App Bar for Mobile */}
+      <AppBar position="fixed" sx={{ width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` }, ml: { sm: `${DRAWER_WIDTH}px` }, display: { sm: 'none' } }}>
+        <Toolbar>
+          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2 }}>
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div">
+            {selectedFile ? selectedFile.name : 'Files'}
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      {/* Navigation Drawer */}
+      <Box component="nav" sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}>
+        {/* Mobile Drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{ keepMounted: true }}
+          sx={{ display: { xs: 'block', sm: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH } }}
+        >
+          {drawerContent}
+        </Drawer>
+        {/* Desktop Drawer */}
+        <Drawer
+          variant="permanent"
+          sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH, borderRight: '1px solid #e2e8f0' } }}
+          open
+        >
+          {drawerContent}
+        </Drawer>
+      </Box>
+
+      {/* Main Content Area */}
+      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` }, height: '100vh', overflowY: 'auto', bgcolor: '#ffffff' }}>
+        <Toolbar sx={{ display: { sm: 'none' } }} /> {/* Spacer for mobile appbar */}
+
+        {loadingContent ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <CircularProgress />
+          </Box>
+        ) : selectedFile ? (
+          <Box sx={{ maxWidth: '900px', mx: 'auto', height: '100%' }}>
+            {contentType === 'markdown' && (
+              <MarkdownRenderer
+                markdown={fileContent}
+                onAnalyzeVerse={handleAnalyzeVerse}
+              />
+            )}
+            {contentType === 'pdf' && (
+              <PdfViewer url={fileContent} />
+            )}
+            {contentType === 'other' && (
+              <Paper sx={{ p: 4, textAlign: 'center' }}>
+                <Typography>{fileContent}</Typography>
+              </Paper>
+            )}
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', opacity: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 900, mb: 1, color: '#94a3b8' }}>ADI SHANKARA</Typography>
+            <Typography>Select a file to begin reading</Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* AI Analysis Modal */}
+      <StanzaAnalysisModal
+        open={analysisModalOpen}
+        onClose={handleCloseAnalysisModal}
+        verse={selectedVerse}
+        analysis={analysis}
+        loading={analysisLoading}
+        error={analysisError}
+      />
+    </Box>
   );
 }
